@@ -41,7 +41,8 @@ ROLE_SQL="${ROLE_SQL:-}"
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
-BLUE='\033[0;34m'
+BLUE='\033[0;96m'          # bright cyan — replaces dim blue for readability
+BLUE_BOLD='\033[1;96m'     # bold bright cyan for milestone headers
 NC='\033[0m'
 
 info() { echo -e "${BLUE}[INFO]${NC} $*"; }
@@ -52,7 +53,7 @@ fail() { echo -e "${RED}[FAIL]${NC} $*" >&2; exit 1; }
 milestone() {
   CURRENT_MILESTONE=$((CURRENT_MILESTONE + 1))
   echo
-  echo -e "${BLUE}==== Milestone ${CURRENT_MILESTONE}/${TOTAL_MILESTONES}: $* ====${NC}"
+  echo -e "${BLUE_BOLD}==== Milestone ${CURRENT_MILESTONE}/${TOTAL_MILESTONES}: $* ====${NC}"
 }
 
 usage() {
@@ -221,18 +222,28 @@ ensure_prereqs() {
 copy_integration_files() {
   local scripts_dir="$1"
   local tmp_dir=""
+  # Resolve paths relative to the installer script itself, not the caller's cwd.
+  local self_dir
+  self_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+  local repo_root
+  repo_root="$(cd "${self_dir}/../.." && pwd)"
 
-  if [[ -f "./${SCRIPT_NAME}.py" && -f "./requirements.txt" ]]; then
-    cp -f "./${SCRIPT_NAME}.py" "${scripts_dir}/"
-    cp -f "./requirements.txt" "${scripts_dir}/"
+  # Check 1: installer lives inside integrations/<slug>/ — files are siblings
+  if [[ -f "${self_dir}/${SCRIPT_NAME}.py" && -f "${self_dir}/requirements.txt" ]]; then
+    cp -f "${self_dir}/${SCRIPT_NAME}.py" "${scripts_dir}/"
+    cp -f "${self_dir}/requirements.txt" "${scripts_dir}/"
     return 0
   fi
 
-  if [[ -f "./${INTEGRATION_SUBDIR}/${SCRIPT_NAME}.py" && -f "./${INTEGRATION_SUBDIR}/requirements.txt" ]]; then
-    cp -f "./${INTEGRATION_SUBDIR}/${SCRIPT_NAME}.py" "${scripts_dir}/"
-    cp -f "./${INTEGRATION_SUBDIR}/requirements.txt" "${scripts_dir}/"
+  # Check 2: repo root checkout — integrations/<slug>/ relative to repo root
+  if [[ -f "${repo_root}/${INTEGRATION_SUBDIR}/${SCRIPT_NAME}.py" && -f "${repo_root}/${INTEGRATION_SUBDIR}/requirements.txt" ]]; then
+    cp -f "${repo_root}/${INTEGRATION_SUBDIR}/${SCRIPT_NAME}.py" "${scripts_dir}/"
+    cp -f "${repo_root}/${INTEGRATION_SUBDIR}/requirements.txt" "${scripts_dir}/"
     return 0
   fi
+
+  # Fallback: clone from GitHub
+  prompt_default "Repository URL for connector source" REPO_URL "${DEFAULT_REPO_URL}"
 
   prompt_default "Repository URL for connector source" REPO_URL "${DEFAULT_REPO_URL}"
 
