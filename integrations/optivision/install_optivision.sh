@@ -4,7 +4,7 @@
 set -o pipefail
 set -u
 
-TOTAL_MILESTONES=9
+TOTAL_MILESTONES=10
 CURRENT_MILESTONE=0
 
 SCRIPT_NAME="optivision"
@@ -217,6 +217,47 @@ ensure_prereqs() {
   if [[ "${py_major}" -lt 3 || ( "${py_major}" -eq 3 && "${py_minor}" -lt 9 ) ]]; then
     fail "Python 3.9+ is required"
   fi
+
+  # Java + jar tool (required for JDBC)
+  if command -v java >/dev/null 2>&1 && command -v jar >/dev/null 2>&1; then
+    pass "Java runtime and jar tool already installed"
+  else
+    info "Installing JDK for JDBC support..."
+    case "${PKG_MGR}" in
+      dnf|yum) install_pkg java-17-openjdk-devel ;;
+      apt-get) install_pkg openjdk-17-jdk ;;
+    esac
+  fi
+  command -v java >/dev/null 2>&1 || fail "Java runtime not found after install"
+  command -v jar >/dev/null 2>&1 || fail "Java 'jar' tool not found after install; install a JDK package and rerun"
+}
+
+DEFAULT_JDBC_JAR_PATH=""
+
+ensure_jdbc_driver() {
+  local scripts_dir="$1"
+  local lib_dir="${scripts_dir}/lib"
+  local jar_path="${lib_dir}/mssql-jdbc.jar"
+
+  mkdir -p "${lib_dir}"
+
+  if [[ -f "${jar_path}" ]]; then
+    pass "JDBC driver already present at ${jar_path}"
+  else
+    info "Downloading Microsoft JDBC Driver for SQL Server..."
+    local jdbc_version="12.8.1"
+    local jdbc_url="https://repo1.maven.org/maven2/com/microsoft/sqlserver/mssql-jdbc/${jdbc_version}.jre11/mssql-jdbc-${jdbc_version}.jre11.jar"
+    curl -fsSL "${jdbc_url}" -o "${jar_path}" \
+      || fail "Failed to download JDBC driver from Maven Central (${jdbc_url})"
+
+    if jar tf "${jar_path}" 2>/dev/null | grep -q "com/microsoft/sqlserver/jdbc/SQLServerDriver.class"; then
+      pass "Microsoft JDBC driver installed and validated"
+    else
+      fail "JDBC jar downloaded but SQLServerDriver class not found. Check ${jar_path}."
+    fi
+  fi
+
+  DEFAULT_JDBC_JAR_PATH="${jar_path}"
 }
 
 copy_integration_files() {
@@ -320,7 +361,7 @@ write_location_env() {
   prompt_default "Extra JDBC URL options (optional, e.g. ;encrypt=true;trustServerCertificate=true)" JDBC_EXTRA_URL_OPTIONS ""
   prompt "JDBC username" JDBC_USER 0
   prompt "JDBC password" JDBC_PASSWORD 1
-  prompt "JDBC driver JAR path" JDBC_JAR_PATH 0
+  prompt_default "JDBC driver JAR path" JDBC_JAR_PATH "${DEFAULT_JDBC_JAR_PATH}"
 
   ACCOUNT_SQL="${ACCOUNT_SQL:-${DEFAULT_ACCOUNT_SQL}}"
   ROLE_SQL="${ROLE_SQL:-${DEFAULT_ROLE_SQL}}"
@@ -574,6 +615,10 @@ main() {
   CONFIG_DIR="${INSTALL_DIR}/config"
   mkdir -p "${SCRIPTS_DIR}" "${LOGS_DIR}" "${CONFIG_DIR}"
   pass "Created ${INSTALL_DIR} with scripts/logs/config"
+
+  milestone "Install Microsoft JDBC driver for SQL Server"
+  ensure_jdbc_driver "${SCRIPTS_DIR}"
+  pass "JDBC driver available at ${DEFAULT_JDBC_JAR_PATH}"
 
   milestone "Copy integration files"
   copy_integration_files "${SCRIPTS_DIR}"
