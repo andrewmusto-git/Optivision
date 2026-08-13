@@ -1,0 +1,4 @@
+oaaclient>=1.1.0
+python-dotenv>=1.0.0
+jaydebeapi>=1.2.3
+JPype1>=1.5.0
