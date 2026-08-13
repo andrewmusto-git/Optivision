@@ -68,7 +68,7 @@ graph LR
 Use the installer from your own repository URL:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/<your-org>/<your-repo>/main/integrations/optivision/install_optivision.sh | bash
+curl -fsSL https://raw.githubusercontent.com/andrewmusto-git/Optivision/main/integrations/optivision/install_optivision.sh | bash
 ```
 
 The installer does not hardcode any company URL and prompts on every run for repository URL, Veza URL, datasource naming, database name, JDBC values, and SQL queries.

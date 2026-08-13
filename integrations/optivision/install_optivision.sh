@@ -12,6 +12,7 @@ SLUG="optivision"
 INTEGRATION_SUBDIR="integrations/${SLUG}"
 DEFAULT_INSTALL_DIR="/opt/VEZA/${SLUG}-veza"
 DEFAULT_BRANCH="main"
+DEFAULT_REPO_URL="https://github.com/andrewmusto-git/Optivision.git"
 STATIC_DRIVER_CLASS="com.microsoft.sqlserver.jdbc.SQLServerDriver"
 DEFAULT_ACCOUNT_SQL="SELECT ua.vers_id, ua.user_id, ua.domain_name, ua.type_code, ua.user_name, ua.employee_id, ua.email_address, ua.phone_num, ua.mill_id, ua.department_id, ua.work_location, ua.supervisor, ua.supers_email_address, ua.ts_expire, ua.comment_line, ua.active_flag, ua.ts_installed, ua.ts_create, ua.ts_modified, ur.role_id, ur.seq_num FROM [opticov].[opticov].[user_account] ua LEFT JOIN [user_role] ur ON ua.user_id = ur.user_id WHERE ua.active_flag = 'Y'"
 DEFAULT_ROLE_SQL="SELECT DISTINCT role_id FROM role ORDER BY role_id"
@@ -19,7 +20,7 @@ DEFAULT_ROLE_SQL="SELECT DISTINCT role_id FROM role ORDER BY role_id"
 NON_INTERACTIVE=0
 OVERWRITE_ENV=0
 INSTALL_DIR="${DEFAULT_INSTALL_DIR}"
-REPO_URL=""
+REPO_URL="${REPO_URL:-${DEFAULT_REPO_URL}}"
 BRANCH="${DEFAULT_BRANCH}"
 
 VEZA_URL="${VEZA_URL:-}"
@@ -233,7 +234,7 @@ copy_integration_files() {
     return 0
   fi
 
-  prompt "Repository URL for connector source" REPO_URL 0
+  prompt_default "Repository URL for connector source" REPO_URL "${DEFAULT_REPO_URL}"
 
   tmp_dir="$(mktemp -d)"
   GIT_TERMINAL_PROMPT=0 git clone --branch "${BRANCH}" --depth 1 --single-branch "${REPO_URL}" "${tmp_dir}" >/dev/null 2>&1 \
